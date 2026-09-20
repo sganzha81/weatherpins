@@ -43,6 +43,7 @@
                 <p><strong>Форматы:</strong> JPG, JPEG, PNG, HEIC, HEIF.</p>
                 <p><strong>Размер:</strong> максимум 10 МБ на файл.</p>
                 <p>Можно выбрать несколько фотографий одновременно.</p>
+                <p>До загрузки можно удалить лишние фотографии или добавить ещё.</p>
                 <p>Чтобы фото появилось на карте, в нём должны быть GPS-геометки.</p>
                 <p>Если геометок нет, место можно будет выбрать вручную в “Мои фото”.</p>
                 <p>Если погода не подтянулась сразу, её можно обновить позже в “Мои фото”.</p>
@@ -52,72 +53,39 @@
                 {% csrf_token %}
 
                 <div class="file-field">
-                    <label for="photo-files">Выберите фотографии</label>
                     <input
                         type="file"
                         id="photo-files"
                         name="image"
                         accept="image/*,.heic,.heif,image/heic,image/heif,image/heic-sequence,image/heif-sequence"
                         multiple
+                        class="upload-file-input"
+                        data-upload-input
                     >
+                    <label
+                        for="photo-files"
+                        class="upload-file-control"
+                        data-upload-picker
+                        role="button"
+                        tabindex="0"
+                    >Выбрать фото</label>
                 </div>
 
-                <ul class="selected-files" id="selected-files" aria-live="polite"></ul>
+                <p class="upload-selection-summary" data-upload-selection-summary aria-live="polite">
+                    Выбрано: 0
+                </p>
 
-                <button type="submit" class="submit-button" id="submit-button">Загрузить</button>
-                <p class="loading-note" id="loading-note">Это может занять несколько секунд, особенно для HEIC-файлов.</p>
+                <section class="upload-preview" data-upload-preview hidden aria-label="Очередь загрузки">
+                    <h2>Фото для загрузки</h2>
+                    <ul class="upload-preview-list" data-upload-preview-list></ul>
+                </section>
+
+                <button type="submit" class="submit-button" data-upload-submit>Загрузить фото</button>
+                <p class="loading-note" data-upload-loading-note>Это может занять несколько секунд, особенно для HEIC-файлов.</p>
             </form>
         </section>
     </main>
 
-    <script>
-        (function () {
-            const maxFileSizeBytes = 10 * 1024 * 1024;
-            const fileInput = document.querySelector('input[name="image"]');
-            const fileList = document.getElementById('selected-files');
-            const form = document.getElementById('upload-form');
-            const submitButton = document.getElementById('submit-button');
-            const loadingNote = document.getElementById('loading-note');
-
-            function formatSize(size) {
-                return (size / 1024 / 1024).toFixed(2) + ' МБ';
-            }
-
-            fileInput.addEventListener('change', function () {
-                fileList.innerHTML = '';
-                fileList.classList.toggle('has-files', fileInput.files.length > 0);
-
-                Array.from(fileInput.files).forEach(function (file) {
-                    const item = document.createElement('li');
-                    const name = document.createElement('span');
-                    const size = document.createElement('span');
-
-                    name.className = 'file-name';
-                    name.textContent = file.name;
-
-                    size.className = 'file-size';
-                    size.textContent = formatSize(file.size);
-
-                    item.appendChild(name);
-                    item.appendChild(size);
-
-                    if (file.size > maxFileSizeBytes) {
-                        const warning = document.createElement('span');
-                        warning.className = 'file-warning';
-                        warning.textContent = 'Файл больше 10 МБ — уменьшите размер файла перед загрузкой.';
-                        item.appendChild(warning);
-                    }
-
-                    fileList.appendChild(item);
-                });
-            });
-
-            form.addEventListener('submit', function () {
-                submitButton.disabled = true;
-                submitButton.textContent = 'Загружаем и обрабатываем…';
-                loadingNote.classList.add('is-visible');
-            });
-        }());
-    </script>
+    <script src="{% static 'photos/js/upload-queue.js' %}" defer></script>
 </body>
 </html>

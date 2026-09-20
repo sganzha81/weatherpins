@@ -664,6 +664,14 @@ class UploadPhotoTests(TestCase):
         self.assertContains(response, 'name="image"')
         self.assertContains(response, "multiple")
         self.assertContains(response, "Можно выбрать несколько фотографий одновременно.")
+        self.assertContains(response, "photos/js/upload-queue.js")
+        self.assertContains(response, "data-upload-preview-list")
+        self.assertContains(response, "data-upload-submit")
+        self.assertContains(response, "data-upload-picker")
+        self.assertContains(response, "Выбрать фото")
+        self.assertContains(response, "Фото для загрузки")
+        self.assertContains(response, "Выбрано: 0")
+        self.assertNotContains(response, "Добавить ещё фото")
 
     @patch("photos.views.Image.open")
     def test_validation_accepts_mpo_jpeg_detected_by_pillow(self, image_open):
