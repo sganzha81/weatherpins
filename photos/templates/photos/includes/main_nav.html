@@ -20,7 +20,10 @@
             <a href="{% url 'user_photos' %}">Мои фото</a>
             <a href="{% url 'upload_photo' %}">Загрузить фото</a>
             <a href="{% url 'profile' %}">Профиль</a>
-            <a href="{% url 'logout' %}">Выйти</a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit">Выйти</button>
+            </form>
         {% else %}
             <a href="{% url 'login' %}">Войти</a>
             <a href="{% url 'register' %}">Регистрация</a>

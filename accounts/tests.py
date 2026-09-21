@@ -580,6 +580,35 @@ class AccountTemplateRegressionTests(TestCase):
         self.assertContains(response, reverse("login"))
 
 
+class LogoutViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="logout-user", password="StrongPass123!"
+        )
+        self.client.force_login(self.user)
+
+    def test_navigation_uses_csrf_protected_post(self):
+        response = self.client.get(reverse("profile"))
+
+        self.assertContains(response, f'action="{reverse("logout")}"')
+        self.assertContains(response, 'method="post"')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertContains(response, '<button type="submit">Выйти</button>', html=True)
+
+    def test_logout_requires_post_and_redirects_after_logout(self):
+        logout_url = reverse("logout")
+
+        self.assertEqual(self.client.get(logout_url).status_code, 405)
+        self.assertIn("_auth_user_id", self.client.session)
+
+        response = self.client.post(logout_url)
+
+        self.assertRedirects(
+            response, reverse("photo_list"), fetch_redirect_response=False
+        )
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+
 class PublicMapNameDisplayTests(TestCase):
     def create_public_photo(self, user):
         return Photo.objects.create(

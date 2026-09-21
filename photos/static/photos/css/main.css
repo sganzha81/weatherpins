@@ -189,6 +189,7 @@ body {
 }
 
 .main-nav-links a,
+.main-nav-links button,
 .main-nav-user {
     color: #2563eb;
     font-size: 15px;
@@ -197,7 +198,16 @@ body {
     text-decoration: none;
 }
 
-.main-nav-links a:hover {
+.main-nav-links button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.main-nav-links a:hover,
+.main-nav-links button:hover {
     text-decoration: underline;
 }
 
