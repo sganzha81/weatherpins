@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.views.decorators.http import require_POST
 from django.templatetags.static import static
@@ -454,6 +455,9 @@ def delete_photo(request, photo_id):
             })
 
         messages.success(request, "Фото удалено.")
+        next_url = get_safe_next_url(request, request.POST.get("next"))
+        if next_url:
+            return redirect(next_url)
         return redirect("user_photos")
 
     if is_ajax:
@@ -469,7 +473,7 @@ def delete_photo(request, photo_id):
 def user_photos(request):
     active_status = request.GET.get("status", "all")
     base_photos = Photo.objects.filter(user=request.user)
-    photos = base_photos.order_by("-uploaded_at")
+    photos = base_photos.order_by("-uploaded_at", "-pk")
     total_file_size = base_photos.aggregate(total=Sum("file_size"))["total"] or 0
     storage_limit = get_user_storage_limit_bytes()
     storage_usage_percent = (
@@ -512,7 +516,10 @@ def user_photos(request):
     else:
         active_status = "all"
 
-    for photo in photos:
+    paginator = Paginator(photos, 24)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    for photo in page_obj.object_list:
         weather_data = photo.weather_data or {}
         photo.weather_info = get_weather_info(weather_data.get("weathercode"))
         photo.weather_time_display = format_weather_time(weather_data.get("weather_time"))
@@ -528,7 +535,13 @@ def user_photos(request):
         request,
         "photos/user_photos.html",
         {
-            "photos": photos,
+            "photos": page_obj.object_list,
+            "page_obj": page_obj,
+            "page_range": paginator.get_elided_page_range(
+                page_obj.number,
+                on_each_side=1,
+                on_ends=1,
+            ),
             "active_status": active_status,
             "filter_counts": filter_counts,
             "total_file_size_display": format_file_size(total_file_size),

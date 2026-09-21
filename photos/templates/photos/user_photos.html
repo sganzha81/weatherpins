@@ -299,6 +299,7 @@
                                 {% endif %}
                                 <form method="post" action="{% url 'delete_photo' photo.pk %}" class="delete-form" onsubmit="return confirm('Удалить это фото?');">
                                     {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-delete">Удалить</button>
                                 </form>
                             </div>
@@ -306,6 +307,31 @@
                     </article>
                 {% endfor %}
             </section>
+            {% if page_obj.has_other_pages %}
+                <nav class="pagination" aria-label="Навигация по страницам фотографий">
+                    {% if page_obj.has_previous %}
+                        <a class="pagination-link pagination-previous" href="{% url 'user_photos' %}{% if active_status != 'all' %}?status={{ active_status }}&amp;{% else %}?{% endif %}page={{ page_obj.previous_page_number }}">← Назад</a>
+                    {% else %}
+                        <span class="pagination-link pagination-disabled" aria-disabled="true">← Назад</span>
+                    {% endif %}
+
+                    {% for page_number in page_range %}
+                        {% if page_number == page_obj.paginator.ELLIPSIS %}
+                            <span class="pagination-ellipsis">{{ page_number }}</span>
+                        {% elif page_number == page_obj.number %}
+                            <span class="pagination-link pagination-current" aria-current="page">{{ page_number }}</span>
+                        {% else %}
+                            <a class="pagination-link" href="{% url 'user_photos' %}{% if active_status != 'all' %}?status={{ active_status }}&amp;{% else %}?{% endif %}page={{ page_number }}">{{ page_number }}</a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <a class="pagination-link pagination-next" href="{% url 'user_photos' %}{% if active_status != 'all' %}?status={{ active_status }}&amp;{% else %}?{% endif %}page={{ page_obj.next_page_number }}">Вперёд →</a>
+                    {% else %}
+                        <span class="pagination-link pagination-disabled" aria-disabled="true">Вперёд →</span>
+                    {% endif %}
+                </nav>
+            {% endif %}
         {% else %}
             <section class="empty-state" data-empty-state>
                 {% if active_status == 'public' %}
@@ -432,7 +458,7 @@
             }
         }
 
-        function showPublicEmptyState() {
+        function showPublicEmptyState(publicCount) {
             const grid = document.querySelector(".photo-grid");
             if (!grid || grid.querySelector("[data-photo-card]")) {
                 return;
@@ -441,7 +467,9 @@
             const emptyState = document.createElement("section");
             emptyState.className = "empty-state";
             emptyState.setAttribute("data-empty-state", "");
-            emptyState.innerHTML = "<h2>У вас пока нет публичных фото.</h2><p>Отметьте фото как публичные, чтобы они появились на публичной карте.</p>";
+            emptyState.innerHTML = publicCount > 0
+                ? "<h2>На этой странице больше нет публичных фото.</h2><p>Перейдите на другую страницу, чтобы продолжить просмотр.</p>"
+                : "<h2>У вас пока нет публичных фото.</h2><p>Отметьте фото как публичные, чтобы они появились на публичной карте.</p>";
             grid.replaceWith(emptyState);
         }
 
@@ -481,7 +509,7 @@
                         const card = form.closest("[data-photo-card]");
                         if (card) {
                             card.remove();
-                            showPublicEmptyState();
+                            showPublicEmptyState(data.public_count);
                         }
                     }
                 } catch (error) {

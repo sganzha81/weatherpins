@@ -66,6 +66,90 @@ class UserPhotosPublicFilterTests(TestCase):
             response,
             "Отметьте фото как публичные, чтобы они появились на публичной карте.",
         )
+        self.assertNotContains(response, 'class="pagination"')
+
+
+class UserPhotosPaginationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="sam", password="password")
+
+    def create_photos(self, count, **overrides):
+        photos = [
+            Photo(
+                user=self.user,
+                image=f"photos/tests/photo-{index}.jpg",
+                file_size=10,
+                **overrides,
+            )
+            for index in range(count)
+        ]
+        Photo.objects.bulk_create(photos)
+        return list(Photo.objects.filter(user=self.user).order_by("-pk"))
+
+    def test_paginates_after_filter_and_keeps_global_counts(self):
+        photos = self.create_photos(50, is_public=True)
+        self.client.force_login(self.user)
+
+        response = self.client.get(f"{reverse('user_photos')}?status=public&page=2")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["page_obj"].number, 2)
+        self.assertEqual(len(response.context["photos"]), 24)
+        self.assertEqual(response.context["filter_counts"]["all"], 50)
+        self.assertEqual(response.context["filter_counts"]["public"], 50)
+        self.assertEqual(response.context["total_photo_count"], 50)
+        self.assertEqual(response.context["storage_used_display"], "1 КБ")
+        self.assertContains(response, 'aria-label="Навигация по страницам фотографий"')
+        self.assertContains(response, '?status=public&amp;page=1')
+        self.assertContains(response, '?status=public&amp;page=3')
+        self.assertContains(response, 'aria-current="page">2</span>')
+        self.assertContains(response, f'id="photo-{photos[24].id}"')
+        self.assertNotContains(response, f'id="photo-{photos[0].id}"')
+
+    def test_invalid_page_numbers_are_safe(self):
+        self.create_photos(25)
+        self.client.force_login(self.user)
+
+        for page, expected_page in (("abc", 1), ("-1", 2), ("999999", 2)):
+            response = self.client.get(f"{reverse('user_photos')}?page={page}")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["page_obj"].number, expected_page)
+
+    def test_edit_next_keeps_filter_page_and_anchor(self):
+        photos = self.create_photos(25, is_public=True)
+        self.client.force_login(self.user)
+        photo = photos[24]
+
+        response = self.client.get(f"{reverse('user_photos')}?status=public&page=2")
+
+        self.assertContains(
+            response,
+            f"{reverse('edit_photo', args=[photo.id])}?next=/photos/my/%3Fstatus%3Dpublic%26page%3D2%23photo-{photo.id}",
+        )
+
+
+class DeletePhotoNextTests(TestCase):
+    def test_delete_redirects_to_safe_next(self):
+        user = User.objects.create_user(username="sam", password="password")
+        Photo.objects.bulk_create(
+            [
+                Photo(
+                    user=user,
+                    image="photos/tests/photo.jpg",
+                    file_size=10,
+                )
+            ]
+        )
+        photo = Photo.objects.get(user=user)
+        self.client.force_login(user)
+        next_url = "/photos/my/?status=public&page=2"
+
+        response = self.client.post(
+            reverse("delete_photo", args=[photo.id]),
+            {"next": next_url},
+        )
+
+        self.assertRedirects(response, next_url, fetch_redirect_response=False)
 
 
 class TogglePhotoPublicTests(TestCase):
