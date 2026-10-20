@@ -32,7 +32,7 @@
 
 </head>
 <body class="public-map-page">
-    <div id="map"></div>
+    <div id="map" tabindex="0" aria-label="Карта фотографий"></div>
 
     <section class="public-panel" aria-label="Информация о публичной карте">
         <p class="brand">Weatherpins</p>
@@ -81,6 +81,8 @@
 
     {% include "photos/includes/image_lightbox.html" %}
 
+    <script src="{% static 'photos/js/photo_clusters.js' %}"></script>
+    <script src="{% static 'photos/js/map_photo_popup.js' %}"></script>
     <script>
         const geojsonUrl = "{% url 'public_user_geojson' public_user.username %}";
 
@@ -121,13 +123,21 @@
             url: geojsonUrl,
             format: new ol.format.GeoJSON()
         });
-        const vectorLayer = new ol.layer.Vector({
+        const photoClusters = createPhotoClusters({
+            map,
             source: vectorSource,
-            style: photoStyle
+            photoStyle: feature => feature === selectedFeature ? selectedPhotoStyle : photoStyle,
+            openPhotoPopup,
+            closePopup
+        });
+        const vectorLayer = new ol.layer.Vector({
+            source: photoClusters.source,
+            style: photoClusters.style
         });
         map.addLayer(vectorLayer);
 
         const popupElement = document.createElement('div');
+        popupElement.className = 'popup-overlay';
         popupElement.style.display = 'none';
         document.body.appendChild(popupElement);
         const popupOverlay = new ol.Overlay({
@@ -138,6 +148,13 @@
         map.addOverlay(popupOverlay);
 
         let selectedFeature = null;
+
+        const popupUI = createMapPhotoPopup({
+            map,
+            popupElement,
+            getFeature: () => selectedFeature,
+            closePopup
+        });
 
         function escapeHtml(value) {
             if (value === null || value === undefined) return '';
@@ -224,15 +241,18 @@
         }
 
         function closePopup() {
+            photoClusters.closeGallery();
             popupElement.style.display = 'none';
+            popupUI.reset();
             popupOverlay.setPosition(undefined);
             if (selectedFeature) {
-                selectedFeature.setStyle(photoStyle);
                 selectedFeature = null;
+                vectorLayer.changed();
             }
         }
 
         function openPhotoPopup(feature) {
+            photoClusters.closeGallery();
             const props = feature.getProperties();
             const lonLat = feature.get('lonLat') || feature.getGeometry().getCoordinates();
             const id = props.id;
@@ -241,9 +261,10 @@
             const html = `
                 <div class="popup-card">
                     <div class="popup-header">
-                        <button class="popup-close-btn" onclick="closePopup()" title="Закрыть">✕</button>
+                        <span class="popup-drag-handle" aria-hidden="true"></span>
+                        <div class="popup-photo-date popup-header-date">${formatPopupDate(props.date)}</div>
+                        <button type="button" class="popup-close-btn" onclick="closePopup()" title="Закрыть" aria-label="Закрыть"><span aria-hidden="true">×</span></button>
                     </div>
-                    <div class="popup-photo-date">${formatPopupDate(props.date)}</div>
                     <div class="popup-photo-wrapper">
                         <button
                             type="button"
@@ -268,7 +289,8 @@
             popupElement.style.display = 'block';
             popupOverlay.setPosition(lonLat);
             selectedFeature = feature;
-            selectedFeature.setStyle(selectedPhotoStyle);
+            vectorLayer.changed();
+            popupUI.focus();
 
             const placeSpan = document.getElementById('place-' + id);
             if (placeSpan && !placeSpan.dataset.loaded) {
@@ -303,15 +325,10 @@
         });
 
         map.on('singleclick', function(event) {
-            const feature = map.forEachFeatureAtPixel(event.pixel, function(feature) {
-                return feature;
+            const cluster = map.forEachFeatureAtPixel(event.pixel, feature => feature, {
+                layerFilter: layer => layer === vectorLayer
             });
-
-            if (feature) {
-                openPhotoPopup(feature);
-            } else {
-                closePopup();
-            }
+            photoClusters.handleClick(cluster);
         });
 
         vectorSource.on('featuresloadend', function() {

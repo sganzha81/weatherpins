@@ -480,6 +480,17 @@ class MapImageLightboxTests(TestCase):
         self.assertContains(response, "photos/js/image_lightbox.js")
         self.assertContains(response, "data-lightbox-src")
         self.assertContains(response, "popup-photo-open")
+        page_html = response.content.decode()
+        self.assertEqual(page_html.count('class="popup-photo-date popup-header-date">'), 1)
+        self.assertLess(page_html.index('class="popup-header"'), page_html.index('class="popup-photo-date popup-header-date">'))
+        self.assertLess(page_html.index('class="popup-photo-date popup-header-date">'), page_html.index('class="popup-close-btn"'))
+        self.assertEqual(page_html.count('class="popup-photo-date">'), 0)
+        self.assertContains(response, "photos/js/map_photo_popup.js", count=1)
+        self.assertContains(response, "photos/css/main.css", count=1)
+        self.assertContains(response, "createMapPhotoPopup({", count=1)
+        self.assertContains(response, 'class="popup-drag-handle" aria-hidden="true"')
+        self.assertContains(response, 'title="Закрыть" aria-label="Закрыть"')
+        self.assertNotContains(response, "↕ Перетащить")
 
     def test_private_map_contains_shared_lightbox_for_authenticated_user(self):
         self.client.force_login(self.user)
@@ -846,3 +857,93 @@ class UploadPhotoTests(TestCase):
         self.assertEqual(Photo.objects.filter(user=self.user).count(), 1)
         self.assertContains(response, "Загружено 1 фото.")
         self.assertContains(response, "second.jpg — Недостаточно места для загрузки.")
+
+
+class MapClusterDataTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username="map-owner")
+        self.other = User.objects.create_user(username="other-owner")
+        self.taken = timezone.make_aware(datetime(2026, 6, 6, 13, 26))
+
+    def photo(self, **overrides):
+        values = {
+            "user": self.owner,
+            "image": "photos/tests/photo.jpg",
+            "latitude": 55.75,
+            "longitude": 37.62,
+            "taken_at": self.taken,
+            "weather_data": {"source": "hourly", "temperature": 12},
+        }
+        values.update(overrides)
+        photo = Photo(**values)
+        Photo.objects.bulk_create([photo])
+        return photo
+
+    def private_data(self):
+        self.client.force_login(self.owner)
+        return self.client.get(reverse("photos_geojson")).json()
+
+    def public_data(self):
+        return self.client.get(
+            reverse("public_user_geojson", args=[self.owner.username])
+        ).json()
+
+    def test_private_map_keeps_only_owner_photos_and_popup_properties(self):
+        private = self.photo()
+        public = self.photo(is_public=True)
+        self.photo(user=self.other, is_public=True)
+        self.photo(latitude=None)
+        data = self.private_data()
+        self.assertEqual(data["type"], "FeatureCollection")
+        self.assertEqual({f["properties"]["id"] for f in data["features"]}, {private.pk, public.pk})
+        for feature in data["features"]:
+            self.assertEqual(feature["geometry"], {
+                "type": "Point", "coordinates": [37.62, 55.75],
+            })
+            props = feature["properties"]
+            self.assertEqual(props["image_url"], private.image.url)
+            self.assertEqual(props["date"], "06.06.2026 13:26")
+            self.assertEqual(props["taken_at_display"], "06.06.2026 13:26")
+            self.assertEqual(props["weather_temperature"], 12)
+            self.assertIn("climate_comparison_text", props)
+
+    def test_anonymous_public_map_excludes_private_other_owner_and_missing_coordinates(self):
+        public = self.photo(is_public=True)
+        self.photo()  # Same point: must not contribute to a public cluster count.
+        self.photo(user=self.other, is_public=True)
+        self.photo(is_public=True, longitude=None)
+        data = self.public_data()
+        self.assertEqual(len(data["features"]), 1)
+        props = data["features"][0]["properties"]
+        self.assertEqual(props["id"], public.pk)
+        self.assertTrue(props["is_public"])
+        self.assertEqual(props["taken_at_display"], "06.06.2026 13:26")
+        self.assertEqual(props["image_url"], public.image.url)
+        self.assertEqual(props["date"], "06.06.2026 13:26")
+
+    def test_missing_capture_date_is_null_even_when_upload_date_exists(self):
+        photo = self.photo(is_public=True, taken_at=None)
+        for data in (self.private_data(), self.public_data()):
+            props = data["features"][0]["properties"]
+            self.assertIsNone(props["taken_at_display"])
+            self.assertEqual(props["date"], photo.uploaded_at.strftime("%d.%m.%Y %H:%M"))
+
+    def test_empty_maps_return_valid_empty_feature_collections(self):
+        expected = {"type": "FeatureCollection", "features": []}
+        self.assertEqual(self.private_data(), expected)
+        self.assertEqual(self.public_data(), expected)
+
+    def test_private_data_still_requires_authentication(self):
+        self.assertEqual(self.client.get(reverse("photos_geojson")).status_code, 302)
+
+    def test_both_templates_load_shared_cluster_resources_and_existing_lightbox(self):
+        self.client.force_login(self.owner)
+        for url in (reverse("photo_list"), reverse("public_user_map", args=[self.owner.username])):
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertContains(response, 'photos/js/photo_clusters.js', count=1)
+                self.assertContains(response, 'photos/css/main.css', count=1)
+                self.assertContains(response, 'photos/js/image_lightbox.js', count=1)
+                self.assertContains(response, 'source: photoClusters.source')
+                self.assertContains(response, 'photoClusters.handleClick(cluster)')
+                self.assertContains(response, 'data-lightbox-src')

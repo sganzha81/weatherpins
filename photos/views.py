@@ -246,6 +246,10 @@ def photo_geojson_feature(photo):
         "properties": {
             "id": photo.id,
             "date": date_str,
+            # Keep the existing popup date; the gallery must never use upload time.
+            "taken_at_display": (
+                photo.taken_at.strftime("%d.%m.%Y %H:%M") if photo.taken_at else None
+            ),
             "weather": weather_str,
             "weather_emoji": weather_info["emoji"],
             "weather_label": weather_info["label"],

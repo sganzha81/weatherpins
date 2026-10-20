@@ -35,7 +35,7 @@
   </ul>
 {% endif %}
 
-    <div id="map"></div>
+    <div id="map" tabindex="0" aria-label="Карта фотографий"></div>
 
     <section id="mapEmptyState" class="map-empty-state" aria-live="polite">
         <h1>На карте пока нет ваших фото</h1>
@@ -52,6 +52,8 @@
     <!-- Скрытое поле для CSRF-токена (нужно для удаления) -->
     {% csrf_token %}
 
+    <script src="{% static 'photos/js/photo_clusters.js' %}"></script>
+    <script src="{% static 'photos/js/map_photo_popup.js' %}"></script>
     <script>
         // ---------- 1. Функция для получения CSRF-токена из куки ----------
         function getCookie(name) {
@@ -143,9 +145,16 @@
             url: '/photos/data.json',
             format: new ol.format.GeoJSON()
         });
-        const vectorLayer = new ol.layer.Vector({
+        const photoClusters = createPhotoClusters({
+            map,
             source: vectorSource,
-            style: getPhotoStyle
+            photoStyle: feature => feature === selectedFeature ? getSelectedPhotoStyle(feature) : getPhotoStyle(feature),
+            openPhotoPopup: feature => openPhotoPopup(feature, { panIntoView: true }),
+            closePopup
+        });
+        const vectorLayer = new ol.layer.Vector({
+            source: photoClusters.source,
+            style: photoClusters.style
         });
         map.addLayer(vectorLayer);
 
@@ -167,85 +176,24 @@
         });
         map.addOverlay(popupOverlay);
 
-        let popupDragOffsetX = 0;
-        let popupDragOffsetY = 0;
-        let isPopupDragging = false;
-        let popupDragStartX = 0;
-        let popupDragStartY = 0;
-        let popupDragStartOffsetX = 0;
-        let popupDragStartOffsetY = 0;
-
-        function applyPopupDragOffset() {
-            popupElement.style.setProperty('--drag-x', `${popupDragOffsetX}px`);
-            popupElement.style.setProperty('--drag-y', `${popupDragOffsetY}px`);
-        }
-
-        function resetPopupDragOffset() {
-            popupDragOffsetX = 0;
-            popupDragOffsetY = 0;
-            isPopupDragging = false;
-            applyPopupDragOffset();
-            popupElement.querySelector('.popup-card')?.classList.remove('is-dragging');
-        }
-
-        popupElement.addEventListener('pointerdown', function(event) {
-            const handle = event.target.closest('.popup-drag-handle');
-            if (!handle) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            isPopupDragging = true;
-            popupDragStartX = event.clientX;
-            popupDragStartY = event.clientY;
-            popupDragStartOffsetX = popupDragOffsetX;
-            popupDragStartOffsetY = popupDragOffsetY;
-
-            popupElement.querySelector('.popup-card')?.classList.add('is-dragging');
-            handle.setPointerCapture?.(event.pointerId);
-        });
-
-        window.addEventListener('pointermove', function(event) {
-            if (!isPopupDragging) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            popupDragOffsetX = popupDragStartOffsetX + event.clientX - popupDragStartX;
-            popupDragOffsetY = popupDragStartOffsetY + event.clientY - popupDragStartY;
-            applyPopupDragOffset();
-        }, { passive: false });
-
-        window.addEventListener('pointerup', function(event) {
-            if (!isPopupDragging) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            isPopupDragging = false;
-            popupElement.querySelector('.popup-card')?.classList.remove('is-dragging');
-        });
-
-        window.addEventListener('pointercancel', function() {
-            isPopupDragging = false;
-            popupElement.querySelector('.popup-card')?.classList.remove('is-dragging');
+        const popupUI = createMapPhotoPopup({
+            map,
+            popupElement,
+            getFeature: () => selectedFeature,
+            closePopup
         });
 
         // ---------- 5. Функция закрытия попапа ----------
         function closePopup() {
+            photoClusters.closeGallery();
             popupElement.style.display = 'none';
-            resetPopupDragOffset();
+            popupUI.reset();
             selectFeature(null);
         }
 
         function selectFeature(feature) {
-            if (selectedFeature && selectedFeature !== feature) {
-                selectedFeature.setStyle(getPhotoStyle(selectedFeature));
-            }
             selectedFeature = feature;
-            if (selectedFeature) {
-                selectedFeature.setStyle(getSelectedPhotoStyle(selectedFeature));
-            }
+            vectorLayer.changed();
         }
 
         function escapeHtml(value) {
@@ -332,6 +280,7 @@
         }
 
         function openPhotoPopup(feature, options = {}) {
+            photoClusters.closeGallery();
             const panIntoView = options.panIntoView === true;
             const props = feature.getProperties();
             const lonLat = feature.getGeometry().getCoordinates();
@@ -346,10 +295,10 @@
             const html = `
                 <div class="popup-card">
                     <div class="popup-header">
-                        <div class="popup-drag-handle" title="Перетащить карточку">↕ Перетащить</div>
-                        <button class="popup-close-btn" onclick="closePopup()" title="Закрыть">✕</button>
+                        <span class="popup-drag-handle" aria-hidden="true"></span>
+                        <div class="popup-photo-date popup-header-date">${formatPopupDate(date)}</div>
+                        <button type="button" class="popup-close-btn" onclick="closePopup()" title="Закрыть" aria-label="Закрыть"><span aria-hidden="true">×</span></button>
                     </div>
-                    <div class="popup-photo-date">${formatPopupDate(date)}</div>
                     <div class="popup-photo-wrapper">
                         <button
                             type="button"
@@ -378,15 +327,15 @@
                     </div>
                 </div>
             `;
-            resetPopupDragOffset();
+            popupUI.reset();
             popupElement.innerHTML = html;
-            applyPopupDragOffset();
             popupElement.style.display = 'block';
             popupOverlay.setPosition(lonLat);
             if (panIntoView) {
                 popupOverlay.panIntoView();
             }
             selectFeature(feature);
+            popupUI.focus();
 
             // Запрашиваем место через Nominatim (как и раньше)
             const placeSpan = document.getElementById('place-' + id);
@@ -415,17 +364,6 @@
             }
         }
 
-        // ---------- 6. Обработка клика по карте (закрываем попап при клике в пустоту) ----------
-        map.on('click', function(evt) {
-            // Проверяем, попал ли клик по маркеру – если нет, закроем попап
-            const feature = map.forEachFeatureAtPixel(evt.pixel, function(feature) {
-                return feature;
-            });
-            if (!feature) {
-                closePopup();
-            }
-        });
-
         // ---------- 7. Обработка клика по маркеру ----------
         vectorSource.on('featuresloadend', function() {
             // Событие featuresloadend вызывается, когда все объекты загружены
@@ -435,7 +373,6 @@
                 const lonLat = feature.getGeometry().getCoordinates();
                 // Сохраняем координаты для оверлея
                 feature.set('lonLat', lonLat);
-                feature.setStyle(getPhotoStyle(feature));
             });
 
             if (targetPhotoId) {
@@ -457,16 +394,12 @@
             }
         });
 
-        // Реальный клик по маркеру обрабатываем через Select interaction? Будем использовать click на карте с проверкой.
-        map.on('singleclick', function(evt) {
-            const feature = map.forEachFeatureAtPixel(evt.pixel, function(feature) {
-                return feature;
+        // Один обработчик для одиночных фотографий, кластеров и пустой карты.
+        map.on('singleclick', function(event) {
+            const cluster = map.forEachFeatureAtPixel(event.pixel, feature => feature, {
+                layerFilter: layer => layer === vectorLayer
             });
-            if (feature) {
-                openPhotoPopup(feature, { panIntoView: true });
-            } else {
-                closePopup();
-            }
+            photoClusters.handleClick(cluster);
         });
 
         // ---------- 8. Функция удаления фото ----------

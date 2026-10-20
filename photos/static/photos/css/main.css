@@ -1565,6 +1565,64 @@ input[type="file"] {
     font-size: 14px;
 }
 
+/* Popup palettes are local to the two map pages; the photo keeps its colors. */
+.map-page,
+.public-map-page {
+    --popup-color-scheme: light;
+    --popup-surface: #ffffff;
+    --popup-text: #1f2937;
+    --popup-muted: #4b5563;
+    --popup-detail: #626c7b;
+    --popup-grip: #94a3b8;
+    --popup-photo-surround: #f1f3f5;
+    --popup-weather-surface: #f5f7fa;
+    --popup-climate-surface: #f0f9ff;
+    --popup-climate-border: #bae6fd;
+    --popup-close-surface: #f1f5f9;
+    --popup-close-hover: #e2e8f0;
+    --popup-close-active: #cbd5e1;
+    --popup-close-text: #475569;
+    --popup-focus: #2563eb;
+    --popup-edit: #2563eb;
+    --popup-edit-hover: #1d4ed8;
+    --popup-delete: #dc2626;
+    --popup-delete-hover: #b91c1c;
+    --popup-action-text: #ffffff;
+    --popup-zoom-surface: rgba(15, 23, 42, 0.78);
+    --popup-zoom-text: #ffffff;
+    --popup-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+    --popup-connector-stroke: #64748b;
+    --popup-connector-halo: rgba(255, 255, 255, 0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+    .map-page,
+    .public-map-page {
+        --popup-color-scheme: dark;
+        --popup-surface: #1e293b;
+        --popup-text: #f1f5f9;
+        --popup-muted: #cbd5e1;
+        --popup-detail: #a8b5c7;
+        --popup-grip: #94a3b8;
+        --popup-photo-surround: #172033;
+        --popup-weather-surface: #263449;
+        --popup-climate-surface: #203549;
+        --popup-climate-border: #3a536b;
+        --popup-close-surface: #334155;
+        --popup-close-hover: #475569;
+        --popup-close-active: #52647d;
+        --popup-close-text: #e2e8f0;
+        --popup-focus: #93c5fd;
+        --popup-edit: #1d4ed8;
+        --popup-edit-hover: #2563eb;
+        --popup-delete: #b91c1c;
+        --popup-delete-hover: #dc2626;
+        --popup-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+        --popup-connector-stroke: #a8b5c7;
+        --popup-connector-halo: rgba(15, 23, 42, 0.85);
+    }
+}
+
 .popup-overlay {
     --drag-x: 0px;
     --drag-y: 0px;
@@ -1583,8 +1641,10 @@ input[type="file"] {
     overflow-y: auto;
     overscroll-behavior: contain;
     border-radius: 15px;
-    background: #ffffff;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.24);
+    background: var(--popup-surface);
+    color: var(--popup-text);
+    color-scheme: var(--popup-color-scheme);
+    box-shadow: var(--popup-shadow);
     font-size: 14px;
     transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
     user-select: text;
@@ -1597,28 +1657,57 @@ input[type="file"] {
 }
 
 .popup-header {
-    min-height: 40px;
-}
-
-.popup-drag-handle {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin: -6px 22px 8px 0;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: #f5f7fa;
-    color: #555555;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.2;
+    justify-content: flex-start;
+    gap: 10px;
+    box-sizing: border-box;
+    height: 40px;
+    min-height: 40px;
+    padding: 2px 0;
+    background: var(--popup-surface);
     cursor: grab;
     touch-action: none;
 }
 
-.popup-drag-handle:active {
+.popup-drag-handle {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 12px;
+    margin: 0;
+    color: var(--popup-grip);
+    background: radial-gradient(circle, currentColor 1.5px, transparent 2px) 0 0 / 7px 6px;
+    pointer-events: none;
+}
+
+.popup-header:active,
+.popup-card.is-dragging .popup-header {
     cursor: grabbing;
+}
+
+.popup-connector {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.popup-connector path {
+    fill: none;
+    stroke: var(--popup-connector-stroke);
+    filter: drop-shadow(0 0 1px var(--popup-connector-halo));
+    stroke-width: 1.75px;
+    stroke-dasharray: 4 5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
+@media (max-width: 768px), (hover: none), (pointer: coarse) {
+    .popup-connector { display: none !important; }
 }
 
 .popup-card img {
@@ -1647,15 +1736,15 @@ input[type="file"] {
     justify-content: center;
     overflow: hidden;
     border-radius: 11px;
-    background: #f1f3f5;
+    background: var(--popup-photo-surround);
 }
 
 .popup-photo-open {
     position: relative;
     display: block;
-    width: fit-content;
+    width: 100%;
     max-width: 100%;
-    margin: 0 auto;
+    margin: 0;
     padding: 0;
     border: 0;
     border-radius: 8px;
@@ -1672,14 +1761,17 @@ input[type="file"] {
 .popup-photo-open .popup-photo-image,
 .map-page .popup-photo-open .popup-photo-image {
     display: block;
-    width: auto;
+    width: 100%;
+    height: auto;
     max-width: 100%;
     max-height: min(36vh, 300px);
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 0;
 }
 
 .popup-photo-open:focus-visible {
-    outline: 3px solid #2563eb;
+    outline: 3px solid var(--popup-focus);
     outline-offset: 3px;
 }
 
@@ -1692,8 +1784,8 @@ input[type="file"] {
     height: 28px;
     place-items: center;
     border-radius: 6px;
-    background: rgba(15, 23, 42, 0.78);
-    color: #ffffff;
+    background: var(--popup-zoom-surface);
+    color: var(--popup-zoom-text);
     font-size: 17px;
     line-height: 1;
     pointer-events: none;
@@ -1793,15 +1885,26 @@ body.image-lightbox-open {
 
 .popup-photo-date {
     margin: 2px 0 8px;
-    color: #1f2937;
+    color: var(--popup-text);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.3;
 }
 
+.popup-header .popup-header-date {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .popup-location {
     margin: 8px 0 0;
-    color: #4b5563;
+    color: var(--popup-muted);
     font-weight: 500;
     line-height: 1.35;
     overflow-wrap: anywhere;
@@ -1811,8 +1914,8 @@ body.image-lightbox-open {
     margin: 8px 0;
     padding: 8px;
     border-radius: 8px;
-    background: #f5f7fa;
-    color: #1f2937;
+    background: var(--popup-weather-surface);
+    color: var(--popup-text);
     line-height: 1.35;
 }
 
@@ -1842,7 +1945,7 @@ body.image-lightbox-open {
     flex-wrap: wrap;
     gap: 2px 8px;
     margin-top: 3px;
-    color: #6b7280;
+    color: var(--popup-detail);
     font-size: 12px;
 }
 
@@ -1857,10 +1960,10 @@ body.image-lightbox-open {
 .popup-climate {
     margin: 8px 0;
     padding: 8px;
-    border: 1px solid #bae6fd;
+    border: 1px solid var(--popup-climate-border);
     border-radius: 8px;
-    background: #f0f9ff;
-    color: #0f172a;
+    background: var(--popup-climate-surface);
+    color: var(--popup-text);
     line-height: 1.35;
 }
 
@@ -1869,25 +1972,34 @@ body.image-lightbox-open {
     margin-top: 3px;
 }
 
-.popup-close-btn {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    width: 40px;
-    height: 40px;
+.popup-header .popup-close-btn {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
     padding: 0;
     border: 0;
     border-radius: 50%;
-    background: #f0f0f0;
-    color: #333333;
-    font-size: 16px;
-    line-height: 40px;
-    text-align: center;
+    background: radial-gradient(circle, var(--popup-close-surface) 0 15px, transparent 16px);
+    color: var(--popup-close-text);
+    font: 24px/1 sans-serif;
     cursor: pointer;
+    touch-action: manipulation;
 }
 
-.popup-close-btn:hover {
-    background: #e0e0e0;
+.popup-header .popup-close-btn:hover {
+    background: radial-gradient(circle, var(--popup-close-hover) 0 15px, transparent 16px);
+    color: var(--popup-text);
+}
+
+.popup-header .popup-close-btn:focus-visible {
+    outline: 2px solid var(--popup-focus);
+    outline-offset: 1px;
+}
+
+.popup-header .popup-close-btn:active {
+    background: radial-gradient(circle, var(--popup-close-active) 0 15px, transparent 16px);
 }
 
 .popup-actions {
@@ -1895,7 +2007,6 @@ body.image-lightbox-open {
     gap: 8px;
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px solid #e5e7eb;
 }
 
 .popup-actions .edit-btn,
@@ -1920,13 +2031,27 @@ body.image-lightbox-open {
 }
 
 .popup-actions .edit-btn {
-    background: #4a90e2;
-    color: #ffffff;
+    background: var(--popup-edit);
+    color: var(--popup-action-text);
 }
 
 .popup-actions .delete-btn {
-    background: #ff4d4d;
-    color: #ffffff;
+    background: var(--popup-delete);
+    color: var(--popup-action-text);
+}
+
+.popup-actions .edit-btn:hover {
+    background: var(--popup-edit-hover);
+}
+
+.popup-actions .delete-btn:hover {
+    background: var(--popup-delete-hover);
+}
+
+.popup-actions .edit-btn:focus-visible,
+.popup-actions .delete-btn:focus-visible {
+    outline: 2px solid var(--popup-focus);
+    outline-offset: 2px;
 }
 
 .popup-action-icon,
@@ -2419,5 +2544,81 @@ body.image-lightbox-open {
 
     .onboarding-block .action-link {
         width: 100%;
+    }
+}
+
+/* One gallery for the active photo cluster, inside OpenLayers' control container. */
+.photo-cluster-gallery {
+    position: absolute;
+    left: 50%;
+    bottom: 76px;
+    transform: translateX(-50%);
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(420px, calc(100vh - 180px));
+    max-height: min(420px, calc(100dvh - 180px));
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    border-radius: 15px;
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.24);
+    pointer-events: auto;
+}
+
+.photo-cluster-gallery[hidden] { display: none; }
+.photo-cluster-gallery h2 {
+    margin: 0 32px 12px 0;
+    font-size: 16px;
+}
+.photo-cluster-close {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+}
+.photo-cluster-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.photo-cluster-choice {
+    min-width: 0;
+    padding: 3px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
+}
+.photo-cluster-choice img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 5px;
+}
+.photo-cluster-choice:focus-visible,
+.photo-cluster-close:focus-visible {
+    outline: 3px solid #1769e8;
+    outline-offset: -3px;
+}
+.photo-cluster-date { display: none; }
+@media (hover: none), (pointer: coarse) {
+    .photo-cluster-date {
+        display: block;
+        padding-top: 4px;
+        font-size: 11px;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
     }
 }
