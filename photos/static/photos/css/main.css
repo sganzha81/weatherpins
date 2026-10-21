@@ -1678,8 +1678,8 @@ input[type="file"] {
     justify-content: flex-start;
     gap: 10px;
     box-sizing: border-box;
-    height: 40px;
-    min-height: 40px;
+    height: 42px;
+    min-height: 42px;
     padding: 2px 0;
     background: var(--popup-surface);
     cursor: grab;
@@ -1747,6 +1747,7 @@ input[type="file"] {
 .popup-photo-wrapper {
     display: flex;
     width: 100%;
+    margin-top: 8px;
     min-height: 96px;
     align-items: center;
     justify-content: center;
@@ -1991,31 +1992,32 @@ body.image-lightbox-open {
 .popup-header .popup-close-btn {
     display: grid;
     place-items: center;
-    flex: 0 0 36px;
-    width: 36px;
-    height: 36px;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     border: 0;
     border-radius: 50%;
-    background: radial-gradient(circle, var(--popup-close-surface) 0 15px, transparent 16px);
+    background: transparent;
     color: var(--popup-close-text);
-    font: 24px/1 sans-serif;
+    font: 18px/1 sans-serif;
     cursor: pointer;
     touch-action: manipulation;
 }
 
 .popup-header .popup-close-btn:hover {
-    background: radial-gradient(circle, var(--popup-close-hover) 0 15px, transparent 16px);
+    background: var(--popup-close-hover);
     color: var(--popup-text);
 }
 
 .popup-header .popup-close-btn:focus-visible {
     outline: 2px solid var(--popup-focus);
     outline-offset: 1px;
+    background: var(--popup-close-surface);
 }
 
 .popup-header .popup-close-btn:active {
-    background: radial-gradient(circle, var(--popup-close-active) 0 15px, transparent 16px);
+    background: var(--popup-close-active);
 }
 
 .popup-actions {
