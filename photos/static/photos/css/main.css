@@ -132,6 +132,22 @@ body {
     padding: 36px 34px;
 }
 
+.profile-header {
+    min-width: 0;
+    text-align: center;
+}
+
+.profile-header .brand-logo {
+    margin-bottom: 16px;
+}
+
+.profile-header .form-title {
+    max-width: 100%;
+    margin: 0 auto 12px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
 .brand-logo {
     display: block;
     max-width: 320px;
@@ -2107,6 +2123,37 @@ body.image-lightbox-open {
 
 .quick-actions {
     gap: 10px;
+}
+
+.profile-logout-form {
+    margin-top: 30px;
+    padding-top: 22px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.profile-logout-button {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 11px 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #334155;
+    font: inherit;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+}
+
+.profile-logout-button:hover {
+    border-color: #94a3b8;
+    background: #f1f5f9;
+}
+
+.profile-logout-button:focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 2px;
 }
 
 .stat-item {

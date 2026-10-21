@@ -595,6 +595,20 @@ class LogoutViewTests(TestCase):
         self.assertContains(response, 'name="csrfmiddlewaretoken"')
         self.assertContains(response, '<button type="submit">Выйти</button>', html=True)
 
+    def test_profile_has_separate_csrf_protected_logout_action(self):
+        response = self.client.get(reverse("profile"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="profile-logout-form"')
+        self.assertContains(response, 'method="post"')
+        self.assertContains(response, f'action="{reverse("logout")}"')
+        self.assertContains(response, 'name="csrfmiddlewaretoken"')
+        self.assertContains(
+            response,
+            '<button class="profile-logout-button" type="submit">Выйти из аккаунта</button>',
+            html=True,
+        )
+
     def test_logout_requires_post_and_redirects_after_logout(self):
         logout_url = reverse("logout")
 

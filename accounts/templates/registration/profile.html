@@ -17,12 +17,14 @@
     <main class="profile-card">
         {% include "photos/includes/main_nav.html" %}
 
-        <img
-            src="{% static 'photos/brand/weatherpins-logo.png' %}"
-            alt="Weatherpins"
-            class="brand-logo"
-        >
-        <h1 class="form-title">Профиль</h1>
+        <header class="profile-header">
+            <img
+                src="{% static 'photos/brand/weatherpins-logo.png' %}"
+                alt="Weatherpins"
+                class="brand-logo"
+            >
+            <h1 class="form-title">Профиль</h1>
+        </header>
         <p class="user-name">@{{ request.user.username }}</p>
         {% if request.user.email %}
             <p class="user-email">{{ request.user.email }}</p>
@@ -107,6 +109,13 @@
                 <a href="{% url 'password_change' %}" class="action-link">Изменить пароль</a>
             </div>
         </section>
+
+        {% if request.user.is_authenticated %}
+            <form class="profile-logout-form" method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="profile-logout-button" type="submit">Выйти из аккаунта</button>
+            </form>
+        {% endif %}
     </main>
 </body>
 </html>
